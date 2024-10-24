@@ -1,39 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zoom Clone</title>
-    <link rel="stylesheet" href="public/style.css" />
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script
-</head>
+    <title>Virtue Virtual Classroom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
 
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo h1 {
+            color: #4a5568;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo p {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .form-container {
+            position: relative;
+            height: 300px;
+            overflow: hidden;
+        }
+
+        form {
+            position: absolute;
+            width: 100%;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .host-form {
+            top: 0;
+        }
+
+        .join-form {
+            top: 0;
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #5a67d8;
+        }
+
+        .switch-form {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .switch-form a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .switch-form a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
 <body>
-    <div class="Name-Page">
-        <div class="form">
-            <form class="known-form" action="/join">
-                <input type="text" placeholder="Enter your name" name="name" />
-                <button>Host a Meeting</button>
-                <p><a href="javascript:show()">Join Meeting?</a></p>
+    <div class="container">
+        <div class="logo">
+            <h1>Virtue</h1>
+            <p>Virtual Classroom Experience</p>
+        </div>
+        
+        
+        <div class="form-container">
+            <form class="host-form" action="/join">
+                <input 
+                    type="text" 
+                    placeholder="Enter your name" 
+                    name="name"
+                    required
+                />
+                <button type="submit">
+                    Host a Meeting
+                </button>
+                <div class="switch-form">
+                    <a href="javascript:toggleForms()">Want to join an existing meeting?</a>
+                </div>
             </form>
 
-            <form class="unknown-form" action="/joinold">
-                <input type="text" placeholder="Enter your name" name="name" />
-                <input type="text" placeholder="Enter Meeting Id" name="meeting_id" />
-                <button>Join Meeting</button>
-                <p>
-                    <a href="javascript:show()">Host Meeting?</a>
-                </p>
+            <form class="join-form" action="/joinold">
+                <input 
+                    type="text" 
+                    placeholder="Enter your name" 
+                    name="name"
+                    required
+                />
+                <input 
+                    type="text" 
+                    placeholder="Enter Meeting ID" 
+                    name="meeting_id"
+                    required
+                />
+                <button type="submit">
+                    Join Meeting
+                </button>
+                <div class="switch-form">
+                    <a href="javascript:toggleForms()">Want to host a new meeting?</a>
+                </div>
+                
             </form>
         </div>
     </div>
+
     <script>
-        function show() {
-            $('form').animate({ height:"toggle",opacity:"toggle"},"slow")
+        function toggleForms() {
+            $('.host-form, .join-form').toggleClass('active');
+            
+            if ($('.host-form').hasClass('active')) {
+                $('.host-form').css({
+                    'transform': 'translateY(-100%)',
+                    'opacity': '0'
+                });
+                $('.join-form').css({
+                    'transform': 'translateY(0)',
+                    'opacity': '1'
+                });
+            } else {
+                $('.host-form').css({
+                    'transform': 'translateY(0)',
+                    'opacity': '1'
+                });
+                $('.join-form').css({
+                    'transform': 'translateY(-100%)',
+                    'opacity': '0'
+                });
+            }
         }
     </script>
 </body>
-
 </html>

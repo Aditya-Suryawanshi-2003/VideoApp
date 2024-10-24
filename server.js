@@ -58,6 +58,12 @@ io.on("connection", (socket) => {
         socket.on("disconnect", () => {
             socket.to(roomId).broadcast.emit("user-disconnected", id);
         });
+
+        socket.on('screenShare', (stream) => {
+            socket.broadcast.emit('screenShare', stream);
+        });
+
+        
     });
 });
 

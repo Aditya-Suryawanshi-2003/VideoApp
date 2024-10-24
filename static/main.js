@@ -1,18 +1,21 @@
 const socket = io("/");
-const main__chat__window = document.getElementById("main__chat_window");
+const main__chat_window = document.getElementById("main__chat_window");
 const videoGrids = document.getElementById("video-grids");
 const myVideo = document.createElement("video");
 const chat = document.getElementById("chat");
-OtherUsername = "";
+
+let OtherUsername = "";
 chat.hidden = true;
 myVideo.muted = true;
 
+// Display modal on window load
 window.onload = () => {
-    $(document).ready(function() {
+    $(document).ready(function () {
         $("#getCodeModal").modal("show");
     });
 };
 
+// Initialize PeerJS
 var peer = new Peer(undefined, {
     path: "/peerjs",
     host: "/",
@@ -21,19 +24,8 @@ var peer = new Peer(undefined, {
 
 let myVideoStream;
 const peers = {};
-var getUserMedia =
-    navigator.getUserMedia ||
-    navigator.webkitGetUserMedia ||
-    navigator.mozGetUserMedia;
 
-sendmessage = (text) => {
-    if (event.key === "Enter" && text.value != "") {
-        socket.emit("messagesend", myname + ' : ' + text.value);
-        text.value = "";
-        main__chat_window.scrollTop = main__chat_window.scrollHeight;
-    }
-};
-
+// Get user media for video and audio
 navigator.mediaDevices
     .getUserMedia({
         video: true,
@@ -43,36 +35,42 @@ navigator.mediaDevices
         myVideoStream = stream;
         addVideoStream(myVideo, stream, myname);
 
+        // Handle new user connections
         socket.on("user-connected", (id, username) => {
-            console.log("userid:" + id);
             connectToNewUser(id, stream, username);
             socket.emit("tellName", myname);
         });
 
+        // Handle user disconnections
         socket.on("user-disconnected", (id) => {
-            console.log(peers);
             if (peers[id]) peers[id].close();
         });
+    })
+    .catch((err) => {
+        console.error("Error accessing media devices:", err);
     });
+
+// Handle incoming calls
 peer.on("call", (call) => {
-    getUserMedia({ video: true, audio: true },
-        function(stream) {
-            call.answer(stream); // Answer the call with an A/V stream.
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then((stream) => {
+            call.answer(stream); // Answer the call with the user's media stream
             const video = document.createElement("video");
-            call.on("stream", function(remoteStream) {
+            call.on("stream", (remoteStream) => {
                 addVideoStream(video, remoteStream, OtherUsername);
             });
-        },
-        function(err) {
-            console.log("Failed to get local stream", err);
-        }
-    );
+        })
+        .catch((err) => {
+            console.error("Failed to get local stream:", err);
+        });
 });
 
+// Emit join-room event
 peer.on("open", (id) => {
     socket.emit("join-room", roomId, id, myname);
 });
 
+// Handle messages
 socket.on("createMessage", (message) => {
     var ul = document.getElementById("messageadd");
     var li = document.createElement("li");
@@ -81,27 +79,59 @@ socket.on("createMessage", (message) => {
     ul.appendChild(li);
 });
 
+// Store the other user's username
 socket.on("AddName", (username) => {
     OtherUsername = username;
-    console.log(username);
 });
 
+// Function to remove unused video divs
 const RemoveUnusedDivs = () => {
-    //
-    alldivs = videoGrids.getElementsByTagName("div");
-    for (var i = 0; i < alldivs.length; i++) {
-        e = alldivs[i].getElementsByTagName("video").length;
-        if (e == 0) {
+    const alldivs = videoGrids.getElementsByTagName("div");
+    for (let i = alldivs.length - 1; i >= 0; i--) {
+        if (alldivs[i].getElementsByTagName("video").length === 0) {
             alldivs[i].remove();
         }
     }
 };
 
-const connectToNewUser = (userId, streams, myname) => {
-    const call = peer.call(userId, streams);
+// Function to share the screen
+const shareScreen = async () => {
+    try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true,
+        });
+
+        // Stop the existing video track
+        myVideoStream.getVideoTracks().forEach((track) => track.stop());
+
+        // Replace the existing video track with the screen stream
+        myVideoStream.addTrack(screenStream.getVideoTracks()[0]);
+
+        // Broadcast the screen stream to other users
+        socket.emit("screenShare", screenStream);
+
+        // Add the screen stream to your video element
+        addVideoStream(myVideo, screenStream, myname);
+    } catch (error) {
+        console.error("Error sharing screen:", error);
+    }
+};
+
+// Listen for screen sharing from other users
+socket.on("screenShare", (stream) => {
+    const video = document.createElement("video");
+    addVideoStream(video, stream, "Screen Share");
+});
+
+// Attach the share screen function to the button
+document.getElementById("shareScreenBtn").addEventListener("click", shareScreen);
+
+// Function to connect to a new user
+const connectToNewUser = (userId, stream, myname) => {
+    const call = peer.call(userId, stream);
     const video = document.createElement("video");
     call.on("stream", (userVideoStream) => {
-        //       console.log(userVideoStream);
         addVideoStream(video, userVideoStream, myname);
     });
     call.on("close", () => {
@@ -111,49 +141,42 @@ const connectToNewUser = (userId, streams, myname) => {
     peers[userId] = call;
 };
 
+// Function to cancel the modal
 const cancel = () => {
     $("#getCodeModal").modal("hide");
 };
 
-const copy = async() => {
+// Function to copy room link
+const copy = async () => {
     const roomid = document.getElementById("roomid").innerText;
     await navigator.clipboard.writeText("http://localhost:3030/join/" + roomid);
 };
+
+// Function to show the invite box
 const invitebox = () => {
     $("#getCodeModal").modal("show");
 };
 
+// Function to mute/unmute audio
 const muteUnmute = () => {
-    const enabled = myVideoStream.getAudioTracks()[0].enabled;
-    if (enabled) {
-        myVideoStream.getAudioTracks()[0].enabled = false;
-        document.getElementById("mic").style.color = "red";
-    } else {
-        document.getElementById("mic").style.color = "white";
-        myVideoStream.getAudioTracks()[0].enabled = true;
-    }
+    const audioTrack = myVideoStream.getAudioTracks()[0];
+    audioTrack.enabled = !audioTrack.enabled;
+    document.getElementById("mic").style.color = audioTrack.enabled ? "white" : "red";
 };
 
+// Function to mute/unmute video
 const VideomuteUnmute = () => {
-    const enabled = myVideoStream.getVideoTracks()[0].enabled;
-    console.log(getUserMedia);
-    if (enabled) {
-        myVideoStream.getVideoTracks()[0].enabled = false;
-        document.getElementById("video").style.color = "red";
-    } else {
-        document.getElementById("video").style.color = "white";
-        myVideoStream.getVideoTracks()[0].enabled = true;
-    }
+    const videoTrack = myVideoStream.getVideoTracks()[0];
+    videoTrack.enabled = !videoTrack.enabled;
+    document.getElementById("video").style.color = videoTrack.enabled ? "white" : "red";
 };
 
+// Function to show/hide chat
 const showchat = () => {
-    if (chat.hidden == false) {
-        chat.hidden = true;
-    } else {
-        chat.hidden = false;
-    }
+    chat.hidden = !chat.hidden;
 };
 
+// Function to add video stream to the grid
 const addVideoStream = (videoEl, stream, name) => {
     videoEl.srcObject = stream;
     videoEl.addEventListener("loadedmetadata", () => {
@@ -165,14 +188,89 @@ const addVideoStream = (videoEl, stream, name) => {
     const videoGrid = document.createElement("div");
     videoGrid.classList.add("video-grid");
     videoGrid.appendChild(h1);
+    videoGrid.appendChild(videoEl);
     videoGrids.appendChild(videoGrid);
-    videoGrid.append(videoEl);
     RemoveUnusedDivs();
+    
+    // Adjust video width based on total users
     let totalUsers = document.getElementsByTagName("video").length;
     if (totalUsers > 1) {
         for (let index = 0; index < totalUsers; index++) {
-            document.getElementsByTagName("video")[index].style.width =
-                100 / totalUsers + "%";
+            document.getElementsByTagName("video")[index].style.width = (100 / totalUsers) + "%";
         }
     }
 };
+
+// Initialize user media
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then((stream) => {
+        localVideo.srcObject = stream; // Set local video stream
+        myVideoStream = stream; // Store the user's video stream
+    })
+    .catch((err) => {
+        console.error("Error accessing media devices:", err);
+    });
+
+// Recording variables
+let mediaRecorder;
+let recordedChunks = [];
+let isRecording = false;
+
+// Start screen recording
+document.getElementById('startRecording').onclick = async () => {
+    if (isRecording) return;
+
+    try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: true
+        });
+
+        mediaRecorder = new MediaRecorder(screenStream);
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = handleStopRecording;
+        mediaRecorder.start();
+        isRecording = true;
+
+        document.getElementById('stopRecording').disabled = false;
+    } catch (err) {
+        console.error("Error starting screen recording: ", err);
+    }
+};
+
+// Stop screen recording
+document.getElementById('stopRecording').onclick = () => {
+    if (!isRecording) return;
+
+    mediaRecorder.stop();
+    isRecording = false;
+    document.getElementById('stopRecording').disabled = true;
+};
+
+// Handle recorded video
+function handleStopRecording() {
+    const blob = new Blob(recordedChunks, { type: 'video/mp4' });
+    recordedChunks = [];
+
+    const videoURL = URL.createObjectURL(blob);
+
+    // Create a link to download the video
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = videoURL;
+    a.download = 'screen-recording.mp4';
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(videoURL);
+    document.body.removeChild(a);
+}
+
+document.getElementById('whiteboardButton').addEventListener('click', () => {
+    window.open('https://miro.com/app/board/uXjVLOmB8Ik=/','_blank'); // Opens link in a new tab
+});
